@@ -43,7 +43,14 @@ def get_unit_state(unit_id):
 
     return resp.json()['status']
 
-def handle_unit_state(unit_id, is_active):
+def handle_unit_state(unit_id, is_active, last_changed):
+    # First condition for shutter units as they don't have any changed_time
+    if last_changed != "0":
+        delta = datetime.now() - datetime.strptime(last_changed, '%Y-%m-%d %H:%M:%S.%f')
+        if delta.total_seconds() < 9:
+            logging.info("Device {id} status changed {sec} seconds ago - skipping it now".format(id=unit_id, sec=delta.total_seconds()))
+            return
+        
     resp = get_unit_state(unit_id )
     if resp == 1 and is_active == "true":
         data_set = {
@@ -77,8 +84,9 @@ def job():
         unit_info = helpers.get_unit_info(units_db, unit)
         unit_status = unit_info['is_active']
         unit_name = unit_info['name']
+        last_changed = unit_info['last_changed']
         logging.info("Running on unit id - {id}, unit name - {name}".format(id=unit, name=unit_name))
-        handle_unit_state(unit, unit_status)
+        handle_unit_state(unit, unit_status, last_changed)
 
 
 scheduler = BlockingScheduler()
