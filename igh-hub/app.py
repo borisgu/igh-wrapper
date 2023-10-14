@@ -95,6 +95,31 @@ def unit(unit_id=None):
         # return get_unit_state(TARGET_URL, TARGET_PORT, unit_id, API_TOKEN), 200
 
     if request.method == 'POST':
+        # Handle cover type units
+        if request.get_json().get('type') == "cover":
+            logger.info("Unit type is cover - handling cover state")
+            action = request.get_json().get('action')
+            if action == "stop":
+                last_action = helpers.get_unit_info(units_db, unit_id)
+                response = set_unit_state(TARGET_URL, TARGET_PORT, unit_id, "", API_TOKEN, "cover", last_action['action']), 200
+                if not response[0]:
+                    logging.info("Returned status from IGH is {}".format(response[0]))
+                    return jsonify(data_set), 200
+                
+                return jsonify({'action': last_action['action']}), 200
+
+            response = set_unit_state(TARGET_URL, TARGET_PORT, unit_id, "", API_TOKEN, "cover", action), 200
+            data_set = {
+                    "action": action,
+                    "last_changed": str(datetime.datetime.now())
+                }
+            if not response[0]:
+                logging.info("Returned status from IGH is {}".format(response[0]))
+                return jsonify(data_set), 200
+
+            helpers.add_content(units_db, unit_id, data_set)
+            return jsonify({'action': action}), 200
+            
         logger.info("Request to set active state to {state} by REST on unit - {unit}".format(state=request.get_json().get('is_active'), unit=unit_id))
         is_active = request.get_json().get('is_active')
         response = set_unit_state(TARGET_URL, TARGET_PORT, unit_id, is_active, API_TOKEN), 200
@@ -111,11 +136,15 @@ def unit(unit_id=None):
         helpers.set_unit_db_state(units_db, unit_id, is_active)
         return jsonify({'is_active': is_active}), 200
 
-def set_unit_state(target, port, unit_id, is_active, api_token):
+def set_unit_state(target, port, unit_id, is_active, api_token, type='switch', action='open'):
     time_limit = 3
 
-    logger.info("Setting is_active state to {} on IGH gateway".format(is_active))
-    if (is_active == "true"):
+    if type == "cover":
+        logger.info("Setting action state to {} on IGH gateway".format(action))
+    else:
+        logger.info("Setting is_active state to {} on IGH gateway".format(is_active))    
+    
+    if (is_active == "true" or action == "open"):
         url = "http://" + target + ":" + port + "/unit/" + unit_id + "?on=100"
     else:
         url = "http://" + target + ":" + port + "/unit/" + unit_id + "?on=0"
