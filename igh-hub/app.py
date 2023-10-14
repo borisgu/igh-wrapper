@@ -144,7 +144,7 @@ def set_unit_state(target, port, unit_id, is_active, api_token, type='switch', a
     else:
         logger.info("Setting is_active state to {} on IGH gateway".format(is_active))    
     
-    if (is_active == "true" or action == "open"):
+    if (is_active == "true" or action == "close"):
         url = "http://" + target + ":" + port + "/unit/" + unit_id + "?on=100"
     else:
         url = "http://" + target + ":" + port + "/unit/" + unit_id + "?on=0"
